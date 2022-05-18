@@ -1,16 +1,28 @@
+components = {}
+commands = {}
+
+class ComponentRegistry(type):
+    def __new__(mtcls, cls, bases, attrs):
+        commands[cls] = cls
+        return type(cls, bases, attrs)
+
+
 class Pattern:
     pass
+
 
 class Component:
     pass
 
 
 class Optional:
-    pass
+    def __init__(self, *pattern):
+        self.pattern = pattern
 
 
 class Text(Component):
-    pass
+    def __init__(self, text):
+        self.text = text
 
 
 class Arg(Component):
@@ -29,11 +41,11 @@ class TableName(Arg):
     pass
 
 
-class KeyWord:
+class Command(metaclass=ComponentRegistry):
     pass
 
 
-class CREATE(KeyWord):
+class CREATE(Command):
     '''
     CREATE BUCKETS time_buckets TYPE DateTime CONTINUOUS
     '''
@@ -58,7 +70,7 @@ class CREATE(KeyWord):
         self.parent_bucket_name = parent_bucket_name
 
 
-class SELECT(KeyWord):
+class SELECT(Command):
     '''
     SELECT CLIENTBASE FALLS INTO time_buckets USING join_datetime as clientbases
     '''
