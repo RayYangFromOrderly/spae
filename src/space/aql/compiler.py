@@ -1,5 +1,5 @@
 from .exceptions import SchemaError, CommandNotFoundError
-from .components import components
+from .components import commands
 
 class Compiler:
     def pre_compile(self, aql):
@@ -8,11 +8,14 @@ class Compiler:
         i = 0
         while i<len(components):
             command = components[i].upper()
-            if command in components:
-                command = components[command]
+            command_args = []
+            if command in commands:
+                command = commands[command]
+                i += 1
                 for component in command.pattern:
-                    count, args = component.resolve(components[i:])
+                    i, args = component.resolve(components, i)
+                    command_args += args
             else:
-                raise CommandNotFoundError(command, components)
+                raise CommandNotFoundError(command, list(commands.keys()))
         print(components)
         # raise SchemaError()

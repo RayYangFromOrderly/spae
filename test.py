@@ -4,6 +4,6 @@ from src.space.aql.compiler import Compiler
 
 Compiler().pre_compile(
     '''
-    CREATE BUCKETS
+    CREATE BUCKETS time_buckets TYPE DateTime
     '''
 )
