@@ -37,7 +37,10 @@ class Optional:
                 all_args += [None] * arg_count
         if passed:
             index = _i
-        return index, all_args
+        else:
+            all_args = [None for _ in all_args]
+
+        return index, [passed] + all_args
 
 
 class Text(Component):
@@ -84,7 +87,9 @@ class SeriesName(Arg):
 
 
 class Command(metaclass=ComponentRegistry):
-    pass
+    pattern = []
+    def simulate(self, aggregation):
+        pass
 
 
 class CREATE(Command):
@@ -111,6 +116,12 @@ class CREATE(Command):
         self.continuous = continuous
         self.is_subbucket = is_subbucket
         self.parent_bucket_name = parent_bucket_name
+
+    def simulate(self, aggregation):
+        if self.is_subbucket:
+            aggregation.create_buckets(self.bucket_name, self.type_name, continuous=self.continuous, parent=self.parent_bucket_name)
+        else:
+            aggregation.create_buckets(self.bucket_name, self.type_name, continuous=self.continuous)
 
 
 class LET(Command):
@@ -164,9 +175,7 @@ class RETURN(Command):
         Text('ON'),
         BucketName()
     ]
-    def __init__(self, series_name, aggregator, field, as_name):
+    def __init__(self, series_name, bucket_name):
         super().__init__()
         self.series_name = series_name
-        self.aggregator = aggregator
-        self.field = field
-        self.as_name = as_name
+        self.bucket_name = bucket_name
