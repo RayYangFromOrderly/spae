@@ -63,6 +63,10 @@ class Arg(Component):
             return index+1, [source_components[index]]
 
 
+class Aggregator(Arg):
+    pass
+
+
 class TypeName(Arg):
     pass
 
@@ -72,6 +76,10 @@ class BucketName(Arg):
 
 
 class TableName(Arg):
+    pass
+
+
+class SeriesName(Arg):
     pass
 
 
@@ -125,3 +133,40 @@ class LET(Command):
         self.bucket_name = bucket_name
         self.field = field
         self.name = name
+
+
+class REDUCE(Command):
+    '''
+    SELECT CLIENTBASE FALLS INTO time_buckets USING join_datetime as clientbases
+    '''
+    pattern = [
+        SeriesName(),
+        Text('AGG'),
+        Aggregator(),
+        Arg(),
+        Text('AS'),
+        Arg()
+    ]
+    def __init__(self, series_name, aggregator, field, as_name):
+        super().__init__()
+        self.series_name = series_name
+        self.aggregator = aggregator
+        self.field = field
+        self.as_name = as_name
+
+
+class RETURN(Command):
+    '''
+    SELECT CLIENTBASE FALLS INTO time_buckets USING join_datetime as clientbases
+    '''
+    pattern = [
+        SeriesName(),
+        Text('ON'),
+        BucketName()
+    ]
+    def __init__(self, series_name, aggregator, field, as_name):
+        super().__init__()
+        self.series_name = series_name
+        self.aggregator = aggregator
+        self.field = field
+        self.as_name = as_name
