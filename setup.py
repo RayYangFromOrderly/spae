@@ -2,9 +2,9 @@ import os
 from setuptools import setup, find_packages
 
 setup(
-    name='space',
+    name='spae',
     version='1.0.0',
-    url='https://github.com/RayYangFromOrderly/space',
+    url='https://github.com/RayYangFromOrderly/spae',
     license='BSD',
     description='Sparked Parallel Aggregation Concentrated Engine',
     author='RayYang',

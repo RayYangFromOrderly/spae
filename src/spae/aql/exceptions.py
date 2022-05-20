@@ -3,7 +3,8 @@ class AqlError(Exception):
 
 
 class ComponentError(AqlError):
-    def __init__(self, arg_count=0):
+    def __init__(self, msg, arg_count=0):
+        super().__init__(msg)
         self.arg_count = 0
 
 

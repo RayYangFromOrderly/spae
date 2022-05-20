@@ -25,13 +25,18 @@ class Optional:
 
     def resolve(self, source_components, index):
         all_args = []
+        _i = index
+        passed = True
         for component in self.pattern:
             try:
-                index, args = component.resolve(source_components, index)
+                _i, args = component.resolve(source_components, _i)
                 all_args += args
             except ComponentError as e:
+                passed = False
                 arg_count = e.arg_count
                 all_args += [None] * arg_count
+        if passed:
+            index = _i
         return index, all_args
 
 
@@ -91,7 +96,8 @@ class CREATE(Command):
             BucketName()
         )
     ]
-    def resolve(self, bucket_name, type_name, continuous, is_subbucket, parent_bucket_name):
+    def __init__(self, bucket_name, type_name, continuous, is_subbucket, parent_bucket_name):
+        super().__init__()
         self.bucket_name = bucket_name
         self.type_name = type_name
         self.continuous = continuous
@@ -99,7 +105,7 @@ class CREATE(Command):
         self.parent_bucket_name = parent_bucket_name
 
 
-class SELECT(Command):
+class LET(Command):
     '''
     SELECT CLIENTBASE FALLS INTO time_buckets USING join_datetime as clientbases
     '''
@@ -113,7 +119,8 @@ class SELECT(Command):
         Text('AS'),
         Arg()
     ]
-    def resolve(self, table_name, bucket_name, field, name):
+    def __init__(self, table_name, bucket_name, field, name):
+        super().__init__()
         self.table_name = table_name
         self.bucket_name = bucket_name
         self.field = field

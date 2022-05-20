@@ -1,6 +1,6 @@
-class Space:
+class spae:
     '''
-    Space Client for AQL Compilation
+    spae Client for AQL Compilation
     '''
 
     def __init__(self, spark_url, db_url):
