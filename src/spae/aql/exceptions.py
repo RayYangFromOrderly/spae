@@ -13,7 +13,7 @@ class CommandNotFoundError(AQLSyntaxError):
         super().__init__(f'Command {cmd} not found, shoud be one of {cmd_pool}', **kwargs)
 
 
-class CommandAQLSyntaxError(AQLSyntaxError):
+class CommandSyntaxError(AQLSyntaxError):
     def __init__(self, text, source=None, **kwargs):
         if source:
             super().__init__(f'{source} cannot be resolved, expecting {text}', **kwargs)

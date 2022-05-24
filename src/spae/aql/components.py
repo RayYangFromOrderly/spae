@@ -1,6 +1,6 @@
 from pyspark.sql.functions import min, max, count, unix_timestamp, hour, mean, sum, avg
 
-from .exceptions import AqlError, CommandAQLSyntaxError, AQLSyntaxError
+from .exceptions import AqlError, CommandSyntaxError, AQLSyntaxError
 
 components = {}
 commands = {}
@@ -51,19 +51,19 @@ class Text(Component):
 
     def resolve(self, source_components, index):
         if not index < len(source_components):
-            raise CommandAQLSyntaxError(self.text)
+            raise CommandSyntaxError(self.text)
 
         source_text = source_components[index]
         if source_text.upper() == self.text.upper():
             return index+1, []
         else:
-            raise CommandAQLSyntaxError(self.text, source=source_text)
+            raise CommandSyntaxError(self.text, source=source_text)
 
 
 class Arg(Component):
     def resolve(self, source_components, index):
         if not index < len(source_components):
-            raise CommandAQLSyntaxError('a name')
+            raise CommandSyntaxError('a name')
         else:
             return index+1, [source_components[index]]
 
@@ -71,7 +71,7 @@ class Arg(Component):
 class Aggregator(Arg):
     def resolve(self, source_components, index):
         if not index < len(source_components):
-            raise CommandAQLSyntaxError('a name')
+            raise CommandSyntaxError('a name')
         else:
             aggregator_map = {
                 'COUNT': count,
