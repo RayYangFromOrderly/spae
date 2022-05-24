@@ -123,6 +123,12 @@ class CREATE(Command):
         else:
             aggregation.create_buckets(self.bucket_name, self.type_name, continuous=self.continuous)
 
+    def run(self, aggregation):
+        if self.is_subbucket:
+            aggregation.create_buckets(self.bucket_name, self.type_name, continuous=self.continuous, parent=self.parent_bucket_name)
+        else:
+            aggregation.create_buckets(self.bucket_name, self.type_name, continuous=self.continuous)
+
 
 class LET(Command):
     '''
@@ -145,6 +151,9 @@ class LET(Command):
         self.field = field
         self.name = name
 
+    def run(self, aggregation):
+        aggregation.create_enetity(self.table_name, bucket_name, field, name)
+
 
 class REDUCE(Command):
     '''
@@ -158,21 +167,39 @@ class REDUCE(Command):
         Text('AS'),
         Arg()
     ]
-    def __init__(self, series_name, aggregator, field, as_name):
+    def __init__(self, entity_name, aggregator, field, as_name):
         super().__init__()
-        self.series_name = series_name
+        self.entity_name = entity_name
         self.aggregator = aggregator
         self.field = field
         self.as_name = as_name
 
+    def run(self, aggregation):
+        aggregation.reduce_enetity(self.entity_name, self.aggregator, self.field, self.as_name)
+
 
 class RETURN(Command):
     '''
-    SELECT CLIENTBASE FALLS INTO time_buckets USING join_datetime as clientbases
+    RETURN clientbases IN time_series
     '''
     pattern = [
         SeriesName(),
-        Text('ON'),
+        Text('IN'),
+        BucketName()
+    ]
+    def __init__(self, series_name, bucket_name):
+        super().__init__()
+        self.series_name = series_name
+        self.bucket_name = bucket_name
+
+
+class TRANSFER(Command):
+    '''
+    TRANSFER clientbases TO ReadBase WHERE clientbases.id=OrderBase.clientbase_id
+    '''
+    pattern = [
+        SeriesName(),
+        Text('IN'),
         BucketName()
     ]
     def __init__(self, series_name, bucket_name):

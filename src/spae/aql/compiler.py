@@ -3,8 +3,15 @@ from .components import commands
 from ..aggregation import Aggregation
 
 class Compiler:
+    def __init__(self, spae):
+        self.spae = spae
+        self.commands = []
+        self.aql = None
+
     def pre_compile(self, aql):
         aggregation = Aggregation()
+        self.aql = aql
+        self.commands = []
         components = aql.split()
         print('=== resolving aql ===')
         i = 0
@@ -19,8 +26,15 @@ class Compiler:
                     command_args += args
 
                 command = Command(*command_args)
-                command.simulate(aggregation)
+                # command.simulate(aggregation)
+                self.commands.append(command)
             else:
                 raise CommandNotFoundError(command, list(commands.keys()))
-        print(components)
+        return self
         # raise SchemaError()
+
+    def run(self):
+        aggregation = Aggregation()
+        for command in self.commands:
+            command.run(aggregation)
+        aggregation.run(self.spae)
