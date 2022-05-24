@@ -2,18 +2,18 @@ class AqlError(Exception):
     pass
 
 
-class ComponentError(AqlError):
+class AQLSyntaxError(AqlError):
     def __init__(self, msg, arg_count=0):
         super().__init__(msg)
         self.arg_count = 0
 
 
-class CommandNotFoundError(ComponentError):
+class CommandNotFoundError(AQLSyntaxError):
     def __init__(self, cmd, cmd_pool, **kwargs):
         super().__init__(f'Command {cmd} not found, shoud be one of {cmd_pool}', **kwargs)
 
 
-class CommandSyntaxError(ComponentError):
+class CommandAQLSyntaxError(AQLSyntaxError):
     def __init__(self, text, source=None, **kwargs):
         if source:
             super().__init__(f'{source} cannot be resolved, expecting {text}', **kwargs)

@@ -1,4 +1,6 @@
-from .exceptions import AqlError, CommandSyntaxError, ComponentError
+from pyspark.sql.functions import min, max, count, unix_timestamp, hour, mean, sum, avg
+
+from .exceptions import AqlError, CommandAQLSyntaxError, AQLSyntaxError
 
 components = {}
 commands = {}
@@ -31,7 +33,7 @@ class Optional:
             try:
                 _i, args = component.resolve(source_components, _i)
                 all_args += args
-            except ComponentError as e:
+            except AQLSyntaxError as e:
                 passed = False
                 arg_count = e.arg_count
                 all_args += [None] * arg_count
@@ -49,25 +51,43 @@ class Text(Component):
 
     def resolve(self, source_components, index):
         if not index < len(source_components):
-            raise CommandSyntaxError(self.text)
+            raise CommandAQLSyntaxError(self.text)
 
         source_text = source_components[index]
         if source_text.upper() == self.text.upper():
             return index+1, []
         else:
-            raise CommandSyntaxError(self.text, source=source_text)
+            raise CommandAQLSyntaxError(self.text, source=source_text)
 
 
 class Arg(Component):
     def resolve(self, source_components, index):
         if not index < len(source_components):
-            raise CommandSyntaxError('a name')
+            raise CommandAQLSyntaxError('a name')
         else:
             return index+1, [source_components[index]]
 
 
 class Aggregator(Arg):
-    pass
+    def resolve(self, source_components, index):
+        if not index < len(source_components):
+            raise CommandAQLSyntaxError('a name')
+        else:
+            aggregator_map = {
+                'COUNT': count,
+                'MAX': max,
+                'MIN': min,
+                'COUNT': count,
+                'SUM': sum,
+                'AVG': avg,
+                'MEAN': mean
+            }
+            try:
+                aggregator = aggregator_map[source_components[index]]
+            except KeyError:
+                raise AQLSyntaxError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}')
+
+            return index+1, [aggregator]
 
 
 class TypeName(Arg):

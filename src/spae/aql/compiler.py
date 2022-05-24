@@ -37,4 +37,4 @@ class Compiler:
         aggregation = Aggregation(self.spae)
         for command in self.commands:
             command.run(aggregation)
-        aggregation.run()
+        return aggregation.run()
