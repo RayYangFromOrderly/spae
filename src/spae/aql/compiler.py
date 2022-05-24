@@ -34,7 +34,7 @@ class Compiler:
         # raise SchemaError()
 
     def run(self):
-        aggregation = Aggregation()
+        aggregation = Aggregation(self.spae)
         for command in self.commands:
             command.run(aggregation)
-        aggregation.run(self.spae)
+        aggregation.run()

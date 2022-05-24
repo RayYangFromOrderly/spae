@@ -34,7 +34,7 @@ class Entity:
         return Entity(self.bucket, self.bucket_using, target_table, self, left_id, right_id)
 
     def reduce(self, aggregator, name):
-        return Series(self, name, aggregator, bucket)
+        return Series(self, name, aggregator, self.bucket)
 
     def get_df(self):
         if self.parent:
@@ -46,8 +46,8 @@ class Entity:
             return self.table.df
 
 class Series:
-    def __init__(self, id, entity, agg, bucket):
-        self.id
+    def __init__(self, entity, series_id, agg, bucket):
+        self.id = series_id
         self.entity = entity
         self.agg = agg
         self.bucket = bucket
@@ -61,7 +61,8 @@ class Series:
 
 
 class Table:
-    def __init__(self, table_name):
+    def __init__(self, spae, table_name):
+        self.spae = spae
         self.table_name = table_name
         self.df = None
         self.columns = []
@@ -71,22 +72,22 @@ class Table:
 
     def initialize(self):
         self.df = (
-            spark.read.format("jdbc")
+            self.spae.spark.read.format("jdbc")
             .option("url", f"jdbc:{ self.spae.db_url }") # postgresql://postgres:5432/postgres
             .option("driver", "org.postgresql.Driver") # currently only postgresql is supported.
-            .option("dbtable", table_name)
+            .option("dbtable", self.table_name)
             .option("user", self.spae.db_user)
             .option("password", self.spae.db_password)
-            .select(*self.columns)
             .load()
+            .select(*self.columns)
         )
-        return df
+
 
 class Bucket:
     def __init__(self):
         self.name = None
         self.parent = None
-        self.values_list = None
+        self.value_list = []
         self.max_value = None
         self.min_value = None
         self.step = timedelta(days=1)
@@ -100,7 +101,7 @@ class Bucket:
 
     def initialize(self):
         # creating buckets
-        df = table.df
+        df = self.table.df
         df = df.withColumn('datetime_stamp', unix_timestamp(df['datetime']))
         d_range = df.select(min(self.using), max(self.using)).collect()[0]
         min_value = d_range['min({self.using})'].replace(hour=0, minute=0, second=0, microsecond=0)
@@ -117,6 +118,7 @@ class Aggregation:
     def __init__(self, spae):
         self.buckets = {}
         self.tables = {}
+        self.entities = {}
         self.series = {}
         self.spae = spae
         self.collecting = []
@@ -138,20 +140,23 @@ class Aggregation:
         for table_name, table in self.tables.items():
             table.initialize()
 
+        for bucket_name, bucket in self.buckets.items():
+            bucket.initialize()
+
         for series_name, series in self.series.items():
             series.bucketize()
 
     def get_table(self, table_name):
         if table_name not in self.tables:
-            self.tables[table_name] = Table(table_name)
+            self.tables[table_name] = Table(self.spae, table_name)
         return self.tables[table_name]
 
-    def create_enetity(table_name, bucket_name, field, name):
+    def create_enetity(self, table_name, bucket_name, field, name):
         table = self.get_table(table_name)
         table.add_field(field)
-        self.entities[name] = Entity(self.bucket, field, table)
+        self.entities[name] = Entity(self.buckets[bucket_name], field, table)
 
-    def reduce_enetity(entity_name, aggregator, field, as_name):
+    def reduce_enetity(self, entity_name, aggregator, field, as_name):
         if aggregator == 'COUNT':
             agg = count(field)
 
@@ -163,5 +168,5 @@ class Aggregation:
         if entity.table:
             entity.table.add_field(field)
 
-        series = entity.reduce(agg)
+        series = entity.reduce(agg, as_name)
         self.series[as_name] = series

@@ -91,6 +91,9 @@ class Command(metaclass=ComponentRegistry):
     def simulate(self, aggregation):
         pass
 
+    def run(self, aggregation):
+        pass
+
 
 class CREATE(Command):
     '''
@@ -152,7 +155,7 @@ class LET(Command):
         self.name = name
 
     def run(self, aggregation):
-        aggregation.create_enetity(self.table_name, bucket_name, field, name)
+        aggregation.create_enetity(self.table_name, self.bucket_name, self.field, self.name)
 
 
 class REDUCE(Command):
