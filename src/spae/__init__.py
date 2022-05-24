@@ -17,4 +17,4 @@ class Spae:
     def aggregate(self, aql):
         compiler = Compiler(self)
         compiler.pre_compile(aql)
-        compiler.run()
+        return compiler.run()

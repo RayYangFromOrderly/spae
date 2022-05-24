@@ -5,8 +5,9 @@ from pyspark.sql import SparkSession
 from datetime import timedelta
 
 from pyspark.ml.feature import Bucketizer
-from pyspark.sql.functions import hour, mean
-from pyspark.sql.functions import min, max, count
+from pyspark.sql.functions import min, max, count, unix_timestamp, hour, mean
+
+from .utils import get_column
 
 class DataType:
     def __init__(self):
@@ -54,10 +55,11 @@ class Series:
 
     def bucketize(self):
         df = self.entity.get_df()
-        bucketizer = self.bucket.get_bucketizer(self.entity.bucket_using, f'bucket__{self.id}')
-        result_df = self.bucket.bucketizer.transform(df)
-        print(result_df.groupBy(f'bucket__{self.id}').agg(self.agg))
-        return result_df
+        column = get_column(self.entity.table, self.entity.bucket_using)
+        bucketizer = self.bucket.get_bucketizer(column)
+        result_df = bucketizer.transform(df)
+
+        return result_df.groupBy(self.bucket.get_column_name()).agg(self.agg.alias(self.id))
 
 
 class Table:
@@ -81,38 +83,62 @@ class Table:
             .load()
             .select(*self.columns)
         )
+        for column in self.columns:
+            get_column(self, column)
 
 
 class Bucket:
-    def __init__(self):
-        self.name = None
+    def __init__(self, spae, name):
+        self.spae = spae
+        self.name = name
         self.parent = None
         self.value_list = []
         self.max_value = None
         self.min_value = None
         self.step = timedelta(days=1)
-        self.table = None
+        self.tables = [
+            # (table, using_field)
+        ]
         self.using = 'datetime_stamp'
-
+        self.df = None
         self.bucketizer = None
 
-    def get_bucketizer(self, from_col, to_col):
-        return Bucketizer(splits=self.value_list, inputCol=from_col, outputCol=to_col)
+    def get_column_name(self):
+        return f'bucket__{self.name}'
+
+    def get_bucketizer(self, column):
+        return Bucketizer(splits=self.value_list, inputCol=column, outputCol=self.get_column_name())
 
     def initialize(self):
+        min_value = None
+        max_value = None
         # creating buckets
-        df = self.table.df
-        df = df.withColumn('datetime_stamp', unix_timestamp(df['datetime']))
-        d_range = df.select(min(self.using), max(self.using)).collect()[0]
-        min_value = d_range['min({self.using})'].replace(hour=0, minute=0, second=0, microsecond=0)
-        max_value = d_range['max({self.using})']
-        sc = spark.sparkContext
+        for table, using in self.tables:
+            df = table.df
+            if using == 'datetime':
+                df = df.withColumn('datetime_stamp', unix_timestamp(df['datetime']))
+            d_range = df.select(min(using), max(using)).collect()[0]
+            _min = d_range[f'min({using})'].replace(hour=0, minute=0, second=0, microsecond=0)
+            _max = d_range[f'max({using})']
+            if min_value:
+                if _min < min_value:
+                    min_value = _min
+            else:
+                min_value = _min
+
+            if max_value:
+                if _max > max_value:
+                    max_value = _max
+            else:
+                max_value = _max
         step = self.step
 
         while min_value <= max_value:
             self.value_list.append(int(min_value.timestamp()))
             min_value += step
 
+    def add_table(self, table, using):
+        self.tables.append((table, using))
 
 class Aggregation:
     def __init__(self, spae):
@@ -124,7 +150,7 @@ class Aggregation:
         self.collecting = []
 
     def create_buckets(self, bucket_name, type_name, continuous=False, parent=None):
-        bucket = Bucket()
+        bucket = Bucket(self.spae, bucket_name)
 
         if bucket_name in self.buckets:
             raise BucketDoesNotExist()
@@ -143,8 +169,18 @@ class Aggregation:
         for bucket_name, bucket in self.buckets.items():
             bucket.initialize()
 
+        result = {}
+
         for series_name, series in self.series.items():
-            series.bucketize()
+            series_df = series.bucketize()
+            for item in series_df.collect():
+                buckets = series.get_buckets()
+                bucket_dict = result
+                for bucket in buckets:
+                    bucket_key = item[buckets]
+                    bucket_dict = bucket_dict[bucket_key] = bucket_dict.get(bucket, {})
+                bucket_dict[series_name] = item[series_name]
+        return result
 
     def get_table(self, table_name):
         if table_name not in self.tables:
@@ -154,7 +190,9 @@ class Aggregation:
     def create_enetity(self, table_name, bucket_name, field, name):
         table = self.get_table(table_name)
         table.add_field(field)
-        self.entities[name] = Entity(self.buckets[bucket_name], field, table)
+        bucket = self.buckets[bucket_name]
+        bucket.add_table(table, field)
+        self.entities[name] = Entity(bucket, field, table)
 
     def reduce_enetity(self, entity_name, aggregator, field, as_name):
         if aggregator == 'COUNT':
