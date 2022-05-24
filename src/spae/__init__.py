@@ -1,5 +1,5 @@
 from .aql.compiler import Compiler
-import pyspark.sql.SparkSession
+from pyspark.sql import SparkSession
 
 
 class Spae:
@@ -15,6 +15,6 @@ class Spae:
         self.spark = SparkSession.builder.master(self.spark_url).config("spark.jars", "/postgresql-42.3.5.jar").appName('abc').getOrCreate()
 
     def aggregate(self, aql):
-        compiler = Compiler()
+        compiler = Compiler(self)
         compiler.pre_compile(aql)
         compiler.run()
