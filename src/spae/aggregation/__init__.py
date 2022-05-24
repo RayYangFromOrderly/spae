@@ -19,25 +19,45 @@ class DataType:
 
 
 class Entity:
-    def __init__(self, table=None, parent: Entity=None, left_id=None, right_id=None):
+    def __init__(self, bucket, bucket_using, table=None, parent: Entity=None, left_id=None, right_id=None, using=None):
         '''
         [readbase] -- clientbaseid, id --> [clientbase]
         '''
+        self.bucket = bucket
+        self.bucket_using = bucket_using
         self.table = table
         self.parent = parent
         self.left_id = left_id
         self.right_id = right_id
 
     def transfer(self, target_table, left_id, right_id):
-        return Entity(target_table, self, left_id, right_id)
+        return Entity(self.bucket, self.bucket_using, target_table, self, left_id, right_id)
 
-    def reduce(self, aggregator):
-        return Series(self, aggregator)
+    def reduce(self, aggregator, name):
+        return Series(self, name, aggregator, bucket)
+
+    def get_df(self):
+        if self.parent:
+            parent_df = self.parent.get_df()
+            left_col = getattr(self.table.df, left_id)
+            right_col = getattr(parent_df, right_id)
+            return self.table.df.join(parent_df, left_col == right_col)
+        else:
+            return self.table.df
 
 class Series:
-    def __init__(self, entity, agg):
+    def __init__(self, id, entity, agg, bucket):
+        self.id
         self.entity = entity
         self.agg = agg
+        self.bucket = bucket
+
+    def bucketize(self):
+        df = self.entity.get_df()
+        bucketizer = self.bucket.get_bucketizer(self.entity.bucket_using, f'bucket__{self.id}')
+        result_df = self.bucket.bucketizer.transform(df)
+        print(result_df.groupBy(f'bucket__{self.id}').agg(self.agg))
+        return result_df
 
 
 class Table:
@@ -74,6 +94,9 @@ class Bucket:
 
         self.bucketizer = None
 
+    def get_bucketizer(self, from_col, to_col):
+        return Bucketizer(splits=self.value_list, inputCol=from_col, outputCol=to_col)
+
     def initialize(self):
         # creating buckets
         df = table.df
@@ -87,8 +110,6 @@ class Bucket:
         while min_value <= max_value:
             self.value_list.append(int(min_value.timestamp()))
             min_value += step
-
-        self.bucketizer = Bucketizer(splits=self.value_list, inputCol=self.using, outputCol=self.name)
 
 
 class Aggregation:
@@ -114,12 +135,9 @@ class Aggregation:
 
     def run(self):
         for table_name, table in self.tables.items():
-            table.inisialize()
+            table.initialize()
 
-        for bucket_name, bucket in self.buckets.items():
-            bucket.initialize()
-
-        for table, series in self.series.items():
+        for series_name, series in self.series.items():
             series.bucketize()
 
         # transforming buckets
@@ -137,7 +155,7 @@ class Aggregation:
     def create_enetity(table_name, bucket_name, field, name):
         table = self.get_table(table_name)
         table.add_field(field)
-        self.entities[name] = Entity(table)
+        self.entities[name] = Entity(self.bucket, field, table)
 
     def reduce_enetity(entity_name, aggregator, field, as_name):
         if aggregator == 'COUNT':
@@ -146,5 +164,10 @@ class Aggregation:
         elif aggregator == 'LEN':
             agg = count(field)
 
-        series = self.entities[entity_name].reduce(agg)
+        entity = self.entities[entity_name]
+
+        if entity.table:
+            entity.table.add_field(field)
+
+        series = entity.reduce(agg)
         self.series[as_name] = series
