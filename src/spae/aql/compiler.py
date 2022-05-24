@@ -9,7 +9,7 @@ class Compiler:
         self.aql = None
 
     def pre_compile(self, aql):
-        aggregation = Aggregation()
+        aggregation = Aggregation(self.spae)
         self.aql = aql
         self.commands = []
         components = aql.split()
