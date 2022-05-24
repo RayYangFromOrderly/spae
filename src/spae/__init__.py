@@ -1,5 +1,5 @@
 from .aql.compiler import Compiler
-import org.apache.spark.sql.SparkSession
+import pyspark.sql.SparkSession
 
 
 class Spae:
