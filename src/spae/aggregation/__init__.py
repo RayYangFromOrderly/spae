@@ -19,7 +19,7 @@ class DataType:
 
 
 class Entity:
-    def __init__(self, bucket, bucket_using, table=None, parent: Entity=None, left_id=None, right_id=None, using=None):
+    def __init__(self, bucket, bucket_using, table=None, parent=None, left_id=None, right_id=None, using=None):
         '''
         [readbase] -- clientbaseid, id --> [clientbase]
         '''
@@ -76,8 +76,9 @@ class Table:
             .option("driver", "org.postgresql.Driver") # currently only postgresql is supported.
             .option("dbtable", table_name)
             .option("user", self.spae.db_user)
-            .option("password", self.spae.db_password).load()
+            .option("password", self.spae.db_password)
             .select(*self.columns)
+            .load()
         )
         return df
 
@@ -139,13 +140,6 @@ class Aggregation:
 
         for series_name, series in self.series.items():
             series.bucketize()
-
-        # transforming buckets
-        from pyspark.sql.functions import unix_timestamp
-        df = df.withColumn('datetime_stamp', unix_timestamp(df['datetime']))
-        df_buck = bucketizer.setHandleInvalid("keep").transform(df)
-
-        df_buck.groupBy('buckets').count()
 
     def get_table(self, table_name):
         if table_name not in self.tables:
