@@ -3,6 +3,8 @@ import datetime
 from pyspark.sql.types import TimestampType
 from pyspark.sql.functions import unix_timestamp, min, max
 
+from .exceptions import DataSetEmpty
+
 types = {}
 def handles(data_type):
 
@@ -38,6 +40,9 @@ class DataType:
         while min_value < max_value:
             value_list.append(min_value)
             min_value += step
+
+        if len(value_list) == 0:
+            raise DataSetEmpty()
 
         return [float('-Inf')] + value_list + [float('Inf')]
 

@@ -64,6 +64,9 @@ class Series:
         return self.bucket.get_buckets()
 
     def bucketize(self):
+        if self.empty:
+            return None
+
         df = self.entity.get_df()
         column = self.entity.bucket_using
         bucketizer = self.bucket.get_bucketizer(column.column)
@@ -110,6 +113,7 @@ class Bucket:
         self.min_value = None
         self.handler = handler
         self.step = timedelta(days=1)
+        self.empty = False
         self.tables = [
             # (table, using_field)
         ]
@@ -149,8 +153,10 @@ class Bucket:
                     max_value = _max
             else:
                 max_value = _max
-
-        self.value_list = self.handler.get_value_list(min_value, max_value, self.step)
+        try:
+            self.value_list = self.handler.get_value_list(min_value, max_value, self.step)
+        except DataSetEmpty:
+            self.empty = True
 
     def add_table(self, table, using):
         self.tables.append((table, using))
@@ -161,6 +167,7 @@ class Aggregation:
         self.tables = {}
         self.entities = {}
         self.series = {}
+        self.returning_series = {}
         self.spae = spae
         self.collecting = []
 
@@ -186,8 +193,11 @@ class Aggregation:
 
         result = {}
 
-        for series_name, series in self.series.items():
+        for series_name, series in self.returning_series.items():
             series_df = series.bucketize()
+            if not series_df:
+                continue
+
             for item in series_df.collect():
                 buckets = series.get_buckets()
                 bucket_dict = result
@@ -213,7 +223,12 @@ class Aggregation:
         bucket.add_table(table, column)
         self.entities[name] = Entity(bucket, column, table)
 
+    def return_series(self, serires_name):
+        self.returning_series[series_name] = self.series.get(serires_name)
+
     def reduce_enetity(self, entity_name, aggregator, field, as_name):
+
+        aggregator = aggregator(field)
 
         entity = self.entities[entity_name]
 

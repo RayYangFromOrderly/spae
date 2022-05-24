@@ -1,6 +1,6 @@
 from pyspark.sql.functions import min, max, count, unix_timestamp, hour, mean, sum, avg
 
-from .exceptions import AqlError, CommandSyntaxError, AQLSyntaxError
+from .exceptions import AqlError, CommandSyntaxError, ComponentError
 
 components = {}
 commands = {}
@@ -33,7 +33,7 @@ class Optional:
             try:
                 _i, args = component.resolve(source_components, _i)
                 all_args += args
-            except AQLSyntaxError as e:
+            except ComponentError as e:
                 passed = False
                 arg_count = e.arg_count
                 all_args += [None] * arg_count
@@ -85,7 +85,7 @@ class Aggregator(Arg):
             try:
                 aggregator = aggregator_map[source_components[index]]
             except KeyError:
-                raise AQLSyntaxError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}')
+                raise ComponentError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}')
 
             return index+1, [aggregator]
 
@@ -215,6 +215,8 @@ class RETURN(Command):
         self.series_name = series_name
         self.bucket_name = bucket_name
 
+    def resolve(self, aggregation):
+        aggregation.return_series(series_name)
 
 class TRANSFER(Command):
     '''
