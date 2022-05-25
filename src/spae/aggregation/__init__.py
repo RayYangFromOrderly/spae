@@ -1,5 +1,3 @@
-from .exceptions import BucketDoesNotExist, BucketNameAlreadyExists
-
 import pyspark
 from pyspark.sql import SparkSession
 from datetime import timedelta
@@ -8,6 +6,8 @@ from pyspark.ml.feature import Bucketizer
 
 from .utils import get_column
 from .data import types, DataType, DateTime
+from .exceptions import BucketDoesNotExist, BucketNameAlreadyExists, DataSetEmpty
+
 
 class Column:
     def __init__(self, table, column):

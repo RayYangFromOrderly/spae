@@ -85,7 +85,7 @@ class Aggregator(Arg):
             try:
                 aggregator = aggregator_map[source_components[index]]
             except KeyError:
-                raise CommandSyntaxError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}')
+                raise CommandSyntaxError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}', source=source_components[index])
 
             return index+1, [aggregator]
 
@@ -98,7 +98,7 @@ class OneOrMore(Arg):
         all_args = []
         while True:
             for component in self.pattern:
-                index, args = component.resolve(source_components, _i)
+                index, args = component.resolve(source_components, index)
                 all_args.append(args)
 
             if index < len(source_components):

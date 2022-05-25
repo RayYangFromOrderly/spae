@@ -14,7 +14,7 @@ class Compiler:
         aggregation = Aggregation(self.spae)
         self.aql = aql
         self.commands = []
-        components = re.split(';|,| |:|\t|\n', aql)
+        components = [component for component in re.split(',| |:|\t|\n', aql) if component]
         print('=== resolving aql ===')
         i = 0
         while i<len(components):
