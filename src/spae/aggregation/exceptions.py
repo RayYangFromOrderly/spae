@@ -14,3 +14,9 @@ class BucketDoesNotExist(AggregationError):
     '''
     Try to name a bucket with existing bucket name
     '''
+
+
+class DataSetEmpty(AggregationError):
+    '''
+    bucket is totally empty
+    '''
