@@ -223,8 +223,9 @@ class Aggregation:
         bucket.add_table(table, column)
         self.entities[name] = Entity(bucket, column, table)
 
-    def return_series(self, serires_name):
-        self.returning_series[series_name] = self.series.get(serires_name)
+    def return_series(self, serires_names):
+        for series_name in serires_names:
+            self.returning_series[series_name] = self.series.get(serires_name)
 
     def reduce_enetity(self, entity_name, aggregator, field, as_name):
 

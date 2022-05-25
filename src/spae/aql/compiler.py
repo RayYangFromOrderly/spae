@@ -1,3 +1,5 @@
+import re
+
 from .exceptions import CommandNotFoundError
 from .components import commands
 from ..aggregation import Aggregation
@@ -12,10 +14,13 @@ class Compiler:
         aggregation = Aggregation(self.spae)
         self.aql = aql
         self.commands = []
-        components = aql.split()
+        components = re.split(';|,| |:|\t|\n', aql)
         print('=== resolving aql ===')
         i = 0
         while i<len(components):
+            if components[i] == ';':
+                continue
+
             command = components[i].upper()
             if command in commands:
                 command_args = []

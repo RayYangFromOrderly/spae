@@ -1,6 +1,6 @@
 from pyspark.sql.functions import min, max, count, unix_timestamp, hour, mean, sum, avg
 
-from .exceptions import AqlError, CommandSyntaxError, ComponentError
+from .exceptions import AqlError, CommandSyntaxError
 
 components = {}
 commands = {}
@@ -33,7 +33,7 @@ class Optional:
             try:
                 _i, args = component.resolve(source_components, _i)
                 all_args += args
-            except ComponentError as e:
+            except CommandSyntaxError as e:
                 passed = False
                 arg_count = e.arg_count
                 all_args += [None] * arg_count
@@ -85,10 +85,29 @@ class Aggregator(Arg):
             try:
                 aggregator = aggregator_map[source_components[index]]
             except KeyError:
-                raise ComponentError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}')
+                raise CommandSyntaxError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}')
 
             return index+1, [aggregator]
 
+
+class OneOrMore(Arg):
+    def __init__(self, *pattern):
+        self.pattern = pattern
+
+    def resolve(self, source_components, index):
+        all_args = []
+        while True:
+            for component in self.pattern:
+                index, args = component.resolve(source_components, _i)
+                all_args.append(args)
+
+            if index < len(source_components):
+                if source_components[index] == ',':
+                    index += 1
+                    continue
+            break
+
+        return index, all_args
 
 class TypeName(Arg):
     pass
@@ -206,17 +225,17 @@ class RETURN(Command):
     RETURN clientbases IN time_series
     '''
     pattern = [
-        SeriesName(),
+        OneOrMore(SeriesName()),
         Text('IN'),
         BucketName()
     ]
-    def __init__(self, series_name, bucket_name):
+    def __init__(self, series_names, bucket_name):
         super().__init__()
-        self.series_name = series_name
+        self.series_names = series_names
         self.bucket_name = bucket_name
 
     def resolve(self, aggregation):
-        aggregation.return_series(series_name)
+        aggregation.return_series(series_names)
 
 class TRANSFER(Command):
     '''
