@@ -1,4 +1,4 @@
-from .exceptions import SchemaError, CommandNotFoundError
+from .exceptions import CommandNotFoundError
 from .components import commands
 from ..aggregation import Aggregation
 
@@ -31,7 +31,6 @@ class Compiler:
             else:
                 raise CommandNotFoundError(command, list(commands.keys()))
         return self
-        # raise SchemaError()
 
     def run(self):
         aggregation = Aggregation(self.spae)
