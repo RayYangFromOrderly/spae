@@ -85,9 +85,27 @@ class Aggregator(Arg):
             try:
                 aggregator = aggregator_map[source_components[index]]
             except KeyError:
-                raise CommandSyntaxError(f'Aggregator not found, should be one of: {list(aggregator_map.keys())}', source=source_components[index])
+                raise CommandSyntaxError(f'one of: {list(aggregator_map.keys())}', source=source_components[index])
 
             return index+1, [aggregator]
+
+
+class Bracketed:
+    def resolve(self, source_components, index):
+        string = ''
+        if index < len(source_components):
+            raise CommandSyntaxError(f'(')
+        elif source_components[index] != '(':
+            raise CommandSyntaxError(f'(', source=source_components[index])
+        index += 1
+
+        while index < len(source_components):
+            if source_components[index] == ')':
+                return index + 1, [string]
+            string += source_components[index]
+            index += 1
+
+        raise CommandSyntaxError(f')')
 
 
 class OneOrMore(Arg):
@@ -144,6 +162,18 @@ class CREATE(Command):
         Text('TYPE'),
         TypeName(),
         Optional(
+            Text('MIN'),
+            Arg()
+        ),
+        Optional(
+            Text('MAX'),
+            Arg()
+        ),
+        Optional(
+            Text('STEP'),
+            Arg()
+        ),
+        Optional(
             Text('CONTINUOUS'),
         ),
         Optional(
@@ -151,11 +181,20 @@ class CREATE(Command):
             BucketName()
         )
     ]
-    def __init__(self, bucket_name, type_name, continuous, is_subbucket, parent_bucket_name):
+    def __init__(
+        self, bucket_name, type_name,
+        custom_min, min_value,
+        custom_max, max_value,
+        custom_step, step_value,
+        continuous, is_subbucket, parent_bucket_name
+    ):
         super().__init__()
-        self.bucket_name = bucket_name
         self.type_name = type_name
+        self.min_value = min_value
+        self.max_value = max_value
+        self.step_value = step_value
         self.continuous = continuous
+        self.bucket_name = bucket_name
         self.is_subbucket = is_subbucket
         self.parent_bucket_name = parent_bucket_name
 
@@ -171,6 +210,10 @@ class CREATE(Command):
         else:
             aggregation.create_buckets(self.bucket_name, self.type_name, continuous=self.continuous)
 
+        aggregation.min_value = self.min_value
+        aggregation.max_value = self.max_value
+        aggregation.step = self.step_value
+
 
 class LET(Command):
     '''
@@ -184,17 +227,23 @@ class LET(Command):
         Text('USING'),
         Arg(),
         Text('AS'),
-        Arg()
+        Arg(),
+        Optional(
+            Text('WHERE'),
+            Bracketed()
+        )
     ]
-    def __init__(self, table_name, bucket_name, field, name):
+    def __init__(self, table_name, bucket_name, field, name, has_condition, condition):
         super().__init__()
         self.table_name = table_name
         self.bucket_name = bucket_name
         self.field = field
         self.name = name
+        self.has_condition = has_condition
+        self.condition = condition
 
     def run(self, aggregation):
-        aggregation.create_enetity(self.table_name, self.bucket_name, self.field, self.name)
+        aggregation.create_enetity(self.table_name, self.bucket_name, self.field, self.name, self.has_condition, self.condition)
 
 
 class REDUCE(Command):
