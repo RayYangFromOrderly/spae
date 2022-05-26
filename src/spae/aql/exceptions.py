@@ -5,7 +5,7 @@ class AqlError(Exception):
 class AQLSyntaxError(AqlError):
     def __init__(self, msg, arg_count=0):
         super().__init__(msg)
-        self.arg_count = 0
+        self.arg_count = arg_count
 
 
 class CommandNotFoundError(AQLSyntaxError):

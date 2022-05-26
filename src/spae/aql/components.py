@@ -93,19 +93,18 @@ class Aggregator(Arg):
 class Bracketed:
     def resolve(self, source_components, index):
         string = ''
-        if index < len(source_components):
-            raise CommandSyntaxError(f'(')
+        if not index < len(source_components):
+            raise CommandSyntaxError(f'(', arg_count=1)
         elif source_components[index] != '(':
-            raise CommandSyntaxError(f'(', source=source_components[index])
+            raise CommandSyntaxError(f'(', source=source_components[index], arg_count=1)
         index += 1
-
         while index < len(source_components):
             if source_components[index] == ')':
                 return index + 1, [string]
-            string += source_components[index]
+            string += ' ' + source_components[index]
             index += 1
 
-        raise CommandSyntaxError(f')')
+        raise CommandSyntaxError(f')', arg_count=1)
 
 
 class OneOrMore(Arg):
@@ -125,7 +124,7 @@ class OneOrMore(Arg):
                     continue
             break
 
-        return index, all_args
+        return index, [all_args]
 
 class TypeName(Arg):
     pass
