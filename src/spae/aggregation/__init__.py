@@ -26,7 +26,7 @@ class Column:
 
 
 class Entity:
-    def __init__(self, bucket, bucket_using, table=None, parent=None, left_id=None, right_id=None, using=None):
+    def __init__(self, bucket, bucket_using, table=None, parent=None, left_id=None, right_id=None, using=None, has_condition=False, condition=None):
         '''
         [readbase] -- clientbaseid, id --> [clientbase]
         '''
@@ -36,6 +36,8 @@ class Entity:
         self.parent = parent
         self.left_id = left_id
         self.right_id = right_id
+        self.has_condition = has_condition
+        self.condition = condition
 
     def transfer(self, target_table, left_id, right_id):
         column = Column(target_table, self.bucket_using)
@@ -49,9 +51,14 @@ class Entity:
             parent_df = self.parent.get_df()
             left_col = getattr(self.table.df, left_id)
             right_col = getattr(parent_df, right_id)
-            return self.table.df.join(parent_df, left_col == right_col)
+            df = self.table.df.join(parent_df, left_col == right_col)
         else:
-            return self.table.df
+            df = self.table.df
+
+        if self.has_condition:
+            df = df.filter(self.condition)
+        return df
+
 
 class Series:
     def __init__(self, entity, series_id, agg, bucket):
@@ -112,7 +119,7 @@ class Bucket:
         self.max_value = None
         self.min_value = None
         self.handler = handler
-        self.step = timedelta(days=1)
+        self.step = None
         self.empty = False
         self.tables = [
             # (table, using_field)
@@ -136,8 +143,12 @@ class Bucket:
         return parents + [self]
 
     def initialize(self):
-        min_value = None
-        max_value = None
+        if self.min_value is not None:
+            self.min_value = self.handler.get_min_value(self.min_value)
+
+        if self.max_value is not None:
+            self.max_value = self.handler.get_max_value(self.max_value)
+        min_value = max_value = None
         # creating buckets
         for table, using in self.tables:
             df = table.df
@@ -216,12 +227,12 @@ class Aggregation:
             self.tables[table_name] = Table(self.spae, table_name)
         return self.tables[table_name]
 
-    def create_enetity(self, table_name, bucket_name, field, name):
+    def create_enetity(self, table_name, bucket_name, field, name, has_condition, condition):
         table = self.get_table(table_name)
         column = table.add_field(field)
         bucket = self.buckets[bucket_name]
         bucket.add_table(table, column)
-        self.entities[name] = Entity(bucket, column, table)
+        self.entities[name] = Entity(bucket, column, table, has_condition=has_condition, condition=condition)
 
     def return_series(self, serires_names):
         for series_name in serires_names:
