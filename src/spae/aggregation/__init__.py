@@ -3,6 +3,7 @@ from pyspark.sql import SparkSession
 from datetime import timedelta
 
 from pyspark.ml.feature import Bucketizer
+from pyspark.sql.functions import col
 
 from .utils import get_column
 from .data import types, DataType, DateTime
@@ -55,6 +56,9 @@ class Entity:
         else:
             df = self.table.df
 
+        if self.bucket_using:
+            df = df.where(col(self.bucket_using.column).isNotNull())
+
         if self.has_condition:
             df = df.filter(self.condition)
         return df
@@ -71,7 +75,7 @@ class Series:
         return self.bucket.get_buckets()
 
     def bucketize(self):
-        if self.empty:
+        if self.bucket.empty:
             return None
 
         df = self.entity.get_df()
@@ -90,9 +94,11 @@ class Table:
         self.columns = {}
 
     def add_field(self, field):
-        column = Column(self, field)
         if field not in self.columns:
+            column = Column(self, field)
             self.columns[field] = column
+        else:
+            column = self.columns[field]
         return column
 
     def initialize(self):
@@ -111,11 +117,13 @@ class Table:
 
 
 class Bucket:
-    def __init__(self, spae, name, handler):
+    def __init__(self, spae=None, name=None, handler=None):
         self.spae = spae
         self.name = name
         self.parent = None
+        self.series_list = []
         self.value_list = []
+        self.children = []
         self.max_value = None
         self.min_value = None
         self.handler = handler
@@ -126,6 +134,39 @@ class Bucket:
         ]
         self.df = None
         self.bucketizer = None
+
+    def add_child(self, bucket):
+        for child in self.children:
+            if bucket.name == child.name:
+                return
+
+        self.children.append(bucket)
+
+    def fill(self, container):
+        '''
+        fill value recursively, current container will be like:
+        {
+            'slots': [
+                {
+                    value: 2,
+                    'other_bucket': {}
+                }
+            ]
+        }
+        '''
+        for value in self.value_list:
+            slot = {
+                'value': value,
+                'slots': []
+            }
+            container['slots'].append(slot)
+            for series in self.series_list:
+                slot[series.id] = 0
+
+            for child in self.children:
+                child_container = {'slots': []}
+                slot[child.name] = child_container
+                child.fill(child_container)
 
     def get_value(self, value):
         return self.handler.get_value(self.value_list[int(value)])
@@ -202,25 +243,37 @@ class Aggregation:
         for bucket_name, bucket in self.buckets.items():
             bucket.initialize()
 
-        result = {}
+        leaf_buckets = []
+        bucket_data = {'slots': []}
+        root_bucket = Bucket()
+        root_bucket.value_list = [None]
+
+        for series in self.returning_series.values():
+            leaf_buckets.append(series.bucket)
+
+        for leaf_bucket in leaf_buckets:
+            buckets = [root_bucket] + leaf_bucket.get_buckets()
+            for i, bucket in enumerate(buckets[:-1]):
+                bucket.add_child(buckets[i+1])
+
+        root_bucket.fill(bucket_data)
+        bucket_data = bucket_data['slots'][0]
 
         for series_name, series in self.returning_series.items():
+            leaf_buckets.append(series.bucket)
             series_df = series.bucketize()
             if not series_df:
                 continue
 
             for item in series_df.collect():
                 buckets = series.get_buckets()
-                bucket_dict = result
+                bucket_dict = bucket_data
                 for bucket in buckets:
-                    if bucket.name not in bucket_dict:
-                        bucket_dict[bucket.name] = {}
-                    bucket_dict = bucket_dict[bucket.name]
-                    bucket_key = bucket.get_value(item[bucket.get_column_name()])
-                    next_bucket = bucket_dict[bucket_key] = bucket_dict.get(bucket_key, {})
-                    bucket_dict = next_bucket
+                    val = int(item[bucket.get_column_name()])
+                    bucket_dict = bucket_dict[bucket.name]['slots'][val]
                 bucket_dict[series_name] = item[series_name]
-        return result
+
+        return bucket_data
 
     def get_table(self, table_name):
         if table_name not in self.tables:
@@ -236,7 +289,7 @@ class Aggregation:
 
     def return_series(self, serires_names):
         for series_name in serires_names:
-            self.returning_series[series_name] = self.series.get(serires_name)
+            self.returning_series[series_name] = self.series.get(series_name)
 
     def reduce_enetity(self, entity_name, aggregator, field, as_name):
 
@@ -248,4 +301,5 @@ class Aggregation:
             column = entity.table.add_field(field)
 
         series = entity.reduce(aggregator, as_name)
+        entity.bucket.series_list.append(series)
         self.series[as_name] = series

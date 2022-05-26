@@ -108,15 +108,19 @@ class Bracketed:
 
 
 class OneOrMore(Arg):
-    def __init__(self, *pattern):
+    def __init__(self, *pattern, flat=False):
         self.pattern = pattern
+        self.flat = flat
 
     def resolve(self, source_components, index):
         all_args = []
         while True:
             for component in self.pattern:
                 index, args = component.resolve(source_components, index)
-                all_args.append(args)
+                if self.flat and args:
+                    all_args.append(args[0])
+                else:
+                    all_args.append(args)
 
             if index < len(source_components):
                 if source_components[index] == ',':
@@ -273,7 +277,7 @@ class RETURN(Command):
     RETURN clientbases IN time_series
     '''
     pattern = [
-        OneOrMore(SeriesName()),
+        OneOrMore(SeriesName(), flat=True),
         Text('IN'),
         BucketName()
     ]
@@ -282,8 +286,8 @@ class RETURN(Command):
         self.series_names = series_names
         self.bucket_name = bucket_name
 
-    def resolve(self, aggregation):
-        aggregation.return_series(series_names)
+    def run(self, aggregation):
+        aggregation.return_series(self.series_names)
 
 class TRANSFER(Command):
     '''
