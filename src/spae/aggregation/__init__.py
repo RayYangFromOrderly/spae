@@ -155,7 +155,7 @@ class Bucket:
         }
         '''
         for value in self.value_list:
-            self.handler.get_value(value)
+            value = self.handler.get_value(value)
             slot = {
                 'value': value,
                 'slots': []
