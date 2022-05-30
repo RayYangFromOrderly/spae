@@ -6,7 +6,7 @@ from pyspark.ml.feature import Bucketizer
 from pyspark.sql.functions import col
 
 from .utils import get_column
-from .data import types, DataType, DateTime
+from .data import types, DataType, DateTime, Category
 from .exceptions import BucketDoesNotExist, BucketNameAlreadyExists, DataSetEmpty
 
 
@@ -80,10 +80,13 @@ class Series:
 
         df = self.entity.get_df()
         column = self.entity.bucket_using
-        bucketizer = self.bucket.get_bucketizer(column.column)
-        result_df = bucketizer.transform(df)
-        result_df = result_df.groupBy(self.bucket.get_column_name()).agg(self.agg.alias(self.id))
-        return result_df
+        if self.bucket.handler != Category:
+            bucketizer = self.bucket.get_bucketizer(column.column)
+            df = bucketizer.transform(df)
+        else:
+            df = df.withColumn(self.bucket.get_column_name(), df[column.column])
+        df = df.groupBy(self.bucket.get_column_name()).agg(self.agg.alias(self.id))
+        return df
 
 
 class Table:
@@ -226,7 +229,7 @@ class Aggregation:
         self.collecting = []
 
     def create_buckets(self, bucket_name, type_name, continuous=False, parent=None):
-        bucket = Bucket(self.spae, bucket_name, DateTime)
+        bucket = Bucket(self.spae, bucket_name, types.get(type_name, DataType))
 
         if bucket_name in self.buckets:
             raise BucketDoesNotExist()

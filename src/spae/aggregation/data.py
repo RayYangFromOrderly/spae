@@ -6,10 +6,11 @@ from pyspark.sql.functions import unix_timestamp, min, max
 from .exceptions import DataSetEmpty
 
 types = {}
-def handles(data_type):
+def handles(*data_types):
 
     def registry(data_type_definition):
-        types[data_type] = data_type_definition
+        for data_type in data_types:
+            types[data_type] = data_type_definition
         return data_type_definition
 
     return registry
@@ -49,7 +50,7 @@ class DataType:
         return value_list
 
 
-@handles(TimestampType)
+@handles(TimestampType, 'DateTime')
 class DateTime(DataType):
     @staticmethod
     def preprocess_column(table, column):
@@ -66,8 +67,17 @@ class DateTime(DataType):
         return datetime.timedelta(days=1).total_seconds()
 
 
-@handles(TimestampType)
-class Category(DataType):
+class IntType(DataType):
+    @staticmethod
+    def get_step(step):
+        if step is not None:
+            return step
+        else:
+            return 1
+
+
+@handles('Category')
+class Category(IntType):
     @staticmethod
     def preprocess_column(table, column):
         trans_to = f'spae__{column}__stamp'
@@ -75,9 +85,8 @@ class Category(DataType):
         return trans_to
 
     @staticmethod
-    def get_value(value):
-        return datetime.datetime.fromtimestamp(value)
-
-    @staticmethod
     def get_step(step):
-        return datetime.timedelta(days=1).total_seconds()
+        if step is not None:
+            return step
+        else:
+            return 1
