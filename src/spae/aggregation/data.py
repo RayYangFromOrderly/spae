@@ -37,18 +37,37 @@ class DataType:
     def get_value_list(cls, min_value, max_value, step):
         step = cls.get_step(step)
         value_list = []
-        while min_value < max_value:
+        while min_value <= max_value:
             value_list.append(min_value)
             min_value += step
+
+        value_list.append(min_value)
 
         if len(value_list) == 0:
             raise DataSetEmpty()
 
-        return [float('-Inf')] + value_list + [float('Inf')]
+        return value_list
 
 
 @handles(TimestampType)
 class DateTime(DataType):
+    @staticmethod
+    def preprocess_column(table, column):
+        trans_to = f'spae__{column}__stamp'
+        table.df = table.df.withColumn(trans_to, unix_timestamp(table.df[column]))
+        return trans_to
+
+    @staticmethod
+    def get_value(value):
+        return datetime.datetime.fromtimestamp(value)
+
+    @staticmethod
+    def get_step(step):
+        return datetime.timedelta(days=1).total_seconds()
+
+
+@handles(TimestampType)
+class Category(DataType):
     @staticmethod
     def preprocess_column(table, column):
         trans_to = f'spae__{column}__stamp'

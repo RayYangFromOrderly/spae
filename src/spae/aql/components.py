@@ -93,6 +93,7 @@ class Aggregator(Arg):
 class Bracketed:
     def resolve(self, source_components, index):
         string = ''
+        left_brack_count = 1
         if not index < len(source_components):
             raise CommandSyntaxError(f'(', arg_count=1)
         elif source_components[index] != '(':
@@ -100,7 +101,13 @@ class Bracketed:
         index += 1
         while index < len(source_components):
             if source_components[index] == ')':
+                left_brack_count -= 1
+            elif source_components[index] == '(':
+                left_brack_count += 1
+
+            if left_brack_count == 0:
                 return index + 1, [string]
+
             string += ' ' + source_components[index]
             index += 1
 
@@ -130,6 +137,7 @@ class OneOrMore(Arg):
 
         return index, [all_args]
 
+
 class TypeName(Arg):
     pass
 
@@ -148,6 +156,21 @@ class SeriesName(Arg):
 
 class Command(metaclass=ComponentRegistry):
     pattern = []
+    def simulate(self, aggregation):
+        pass
+
+    def run(self, aggregation):
+        pass
+
+
+class DEFINE(Command):
+    '''
+    DEFINE age (now() - bday)
+    '''
+    pattern = [
+        Arg(),
+        Bracketed(),
+    ]
     def simulate(self, aggregation):
         pass
 
