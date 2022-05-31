@@ -8,7 +8,7 @@ class Spae:
     spae Client for AQL Compilation
     '''
 
-    def __init__(self, spark_url, db_url, db_user, db_password, lazy=False):
+    def __init__(self, spark_url, db_url, db_user, db_password, addional_jars=[], lazy=False):
         self.spark_url = spark_url
         self.db_url = db_url
         self.db_user = db_user
@@ -19,9 +19,12 @@ class Spae:
             self.build_session()
 
     def build_session(self):
+        builder = SparkSession.builder.master(self.spark_url)
+        for jar in self.additional_jars:
+            builder = builder.config("spark.jars", jar)
+
         self.spark = (
-            SparkSession.builder.master(self.spark_url)
-            .config("spark.jars", "/postgresql-42.3.5.jar")
+            builder
             .appName('SPAE')
             .getOrCreate()
         )
