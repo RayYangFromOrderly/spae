@@ -8,13 +8,14 @@ class Spae:
     spae Client for AQL Compilation
     '''
 
-    def __init__(self, spark_url, db_url, db_user, db_password, addional_jars=[], lazy=False):
+    def __init__(self, spark_url, db_url, db_user, db_password, additional_jars=[], lazy=False):
         self.spark_url = spark_url
         self.db_url = db_url
         self.db_user = db_user
         self.db_password = db_password
         self.lazy = lazy
         self.spark = None
+        self.additional_jars = additional_jars
         if not lazy:
             self.build_session()
 
