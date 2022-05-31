@@ -196,9 +196,9 @@ class Bucket:
             self.max_value = self.handler.get_max_value(self.max_value)
         min_value = max_value = None
         # creating buckets
-        for table, using in self.tables:
+        for table, using, condition in self.tables:
             df = table.df
-            _min, _max = self.handler.get_range(table, using)
+            _min, _max = self.handler.get_range(table, using, condition)
             if min_value:
                 if _min < min_value:
                     min_value = _min
@@ -215,8 +215,8 @@ class Bucket:
         except DataSetEmpty:
             self.empty = True
 
-    def add_table(self, table, using):
-        self.tables.append((table, using))
+    def add_table(self, table, using, condition):
+        self.tables.append((table, using, condition))
 
 class Aggregation:
     def __init__(self, spae):
@@ -289,7 +289,7 @@ class Aggregation:
         table = self.get_table(table_name)
         column = table.add_field(field)
         bucket = self.buckets[bucket_name]
-        bucket.add_table(table, column)
+        bucket.add_table(table, column, condition)
         self.entities[name] = Entity(bucket, column, table, has_condition=has_condition, condition=condition)
 
     def return_series(self, serires_names):

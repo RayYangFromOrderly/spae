@@ -17,9 +17,9 @@ def handles(*data_types):
 
 class DataType:
     @staticmethod
-    def get_range(table, column):
+    def get_range(table, column, condition):
         using = column.column
-        d_range = table.df.select(min(using).alias('__min'), max(using).alias('__max')).collect()[0]
+        d_range = table.df.filter(condition).select(min(using).alias('__min'), max(using).alias('__max')).collect()[0]
         return d_range[f'__min'], d_range[f'__max']
 
     @staticmethod
