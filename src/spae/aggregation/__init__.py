@@ -162,7 +162,6 @@ class Bucket:
                 value = self.handler.get_value(value)
             slot = {
                 'value': value,
-                'slots': []
             }
             container['slots'].append(slot)
             for series in self.series_list:
