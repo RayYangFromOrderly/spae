@@ -20,7 +20,7 @@ class DataType:
     def get_range(table, column, condition):
         using = column.column
         d_range = table.df.filter(condition).select(min(using).alias('__min'), max(using).alias('__max')).collect()[0]
-        return d_range[f'__min'], d_range[f'__max']
+        return d_range['__min'], d_range['__max']
 
     @staticmethod
     def preprocess_column(table, column):
@@ -52,6 +52,12 @@ class DataType:
 
 @handles(TimestampType, 'DateTime')
 class DateTime(DataType):
+    @staticmethod
+    def get_range(table, column, condition):
+        start, end = DataType.get_range(table, column, condition)
+        start = datetime.datetime.fromtimestamp(start).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        return (start, end)
+
     @staticmethod
     def preprocess_column(table, column):
         trans_to = f'spae__{column}__stamp'
