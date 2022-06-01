@@ -243,7 +243,7 @@ class CREATE(Command):
 
 class LET(Command):
     '''
-    SELECT CLIENTBASE FALLS INTO time_buckets USING join_datetime as clientbases
+    SELECT CLIENTBASE FALLS INTO time_buckets USING join_datetime as clientbases ANNOTATING () AS age
     '''
     pattern = [
         TableName(),
@@ -257,9 +257,19 @@ class LET(Command):
         Optional(
             Text('WHERE'),
             Bracketed()
-        )
+        ),
+        Optional(
+            Text('ANNOTATING'),
+            Bracketed(),
+            Text('AS'),
+            Arg()
+        ),
+        Optional(
+            Text('FIELDS'),
+            OneOrMore(Arg(), flat=True)
+        ),
     ]
-    def __init__(self, table_name, bucket_name, field, name, has_condition, condition):
+    def __init__(self, table_name, bucket_name, field, name, has_condition, condition, has_annotation, annotation, as_field, has_fields, additional_fields):
         super().__init__()
         self.table_name = table_name
         self.bucket_name = bucket_name
@@ -267,9 +277,19 @@ class LET(Command):
         self.name = name
         self.has_condition = has_condition
         self.condition = condition
+        self.has_annotation = has_annotation
+        self.annotation = annotation
+        self.as_field = as_field
+        self.has_fields = has_fields
+        self.additional_fields = additional_fields
 
     def run(self, aggregation):
-        aggregation.create_enetity(self.table_name, self.bucket_name, self.field, self.name, self.has_condition, self.condition)
+        entity = aggregation.create_enetity(self.table_name, self.bucket_name, self.field, self.name, self.has_condition, self.condition,)
+        if self.has_fields:
+            entity.table.add_fields(*self.additional_fields)
+
+        if self.has_annotation:
+            entity.annotate(self.annotation, self.as_field)
 
 
 class REDUCE(Command):
