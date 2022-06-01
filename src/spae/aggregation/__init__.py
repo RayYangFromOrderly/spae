@@ -293,12 +293,14 @@ class Aggregation:
             self.tables[table_name] = Table(self.spae, table_name)
         return self.tables[table_name]
 
-    def create_enetity(self, table_name, bucket_name, field, name, has_condition, condition):
+    def create_entity(self, table_name, bucket_name, field, name, has_condition, condition):
         table = self.get_table(table_name)
         column = table.add_fields(field)
         bucket = self.buckets[bucket_name]
         bucket.add_table(table, column, condition)
-        self.entities[name] = Entity(bucket, column, table, has_condition=has_condition, condition=condition)
+        entity = Entity(bucket, column, table, has_condition=has_condition, condition=condition)
+        self.entities[name] = entity
+        return entity
 
     def return_series(self, serires_names):
         for series_name in serires_names:

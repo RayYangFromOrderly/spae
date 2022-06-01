@@ -284,7 +284,7 @@ class LET(Command):
         self.additional_fields = additional_fields
 
     def run(self, aggregation):
-        entity = aggregation.create_enetity(self.table_name, self.bucket_name, self.field, self.name, self.has_condition, self.condition,)
+        entity = aggregation.create_entity(self.table_name, self.bucket_name, self.field, self.name, self.has_condition, self.condition,)
         if self.has_fields:
             entity.table.add_fields(*self.additional_fields)
 
