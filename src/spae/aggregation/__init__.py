@@ -3,7 +3,7 @@ from pyspark.sql import SparkSession
 from datetime import timedelta
 
 from pyspark.ml.feature import Bucketizer
-from pyspark.sql.functions import col
+from pyspark.sql.functions import *
 
 from .utils import get_column
 from .data import types, DataType, DateTime, Category
@@ -12,15 +12,17 @@ from .exceptions import BucketDoesNotExist, BucketNameAlreadyExists, DataSetEmpt
 
 class Column:
     def __init__(self, table, column):
+        self.annotated = False
         self.table = table
         self.original_col = column
         self.handler = None
         self.column = column
 
     def initialize(self):
-        type_cls = self.table.df.schema[self.column].dataType.__class__
-        self.handler = types.get(type_cls, DataType)
-        self.column = self.handler.preprocess_column(self.table, self.column)
+        if self.column in self.table.df.schema:
+            type_cls = self.table.df.schema[self.column].dataType.__class__
+            self.handler = types.get(type_cls, DataType)
+            self.column = self.handler.preprocess_column(self.table, self.column)
 
     def __eq__(self, obj):
         return self.column == obj.column
@@ -39,10 +41,6 @@ class Entity:
         self.right_id = right_id
         self.has_condition = has_condition
         self.condition = condition
-        self.annotations = []
-
-    def annotate(self, annotationg, as_field):
-        self.annotations.append((annotationg, as_field))
 
     def transfer(self, target_table, left_id, right_id):
         column = Column(target_table, self.bucket_using)
@@ -65,10 +63,6 @@ class Entity:
 
         if self.has_condition:
             df = df.filter(self.condition)
-
-        for annotation, as_field in self.annotations:
-            df = df.withColumn(as_field, eval(annotation))
-
         return df
 
 
@@ -103,15 +97,22 @@ class Table:
         self.table_name = table_name
         self.df = None
         self.columns = {}
+        self.annotations = []
 
-    def add_fields(self, *fields):
+    def add_fields(self, *fields, annotated=False):
         for field in fields:
             if field not in self.columns:
                 column = Column(self, field)
                 self.columns[field] = column
             else:
                 column = self.columns[field]
+            if annotated:
+                column.annotated = True
+
         return column
+
+    def annotate(self, annotation, as_field):
+        self.annotations.append((annotation, as_field))
 
     def initialize(self):
         self.df = (
@@ -122,8 +123,11 @@ class Table:
             .option("user", self.spae.db_user)
             .option("password", self.spae.db_password)
             .load()
-            .select(*[column.column for column in self.columns.values()])
+            .select(*[column.column for column in self.columns.values() if not column.annotated])
         )
+        for annotation, as_field in self.annotations:
+            self.df = self.df.withColumn(as_field, eval(annotation))
+
         for column in self.columns.values():
             column.initialize()
 
@@ -139,7 +143,7 @@ class Bucket:
         self.max_value = None
         self.min_value = None
         self.handler = handler
-        self.step = None
+        self.step = 1
         self.empty = False
         self.tables = [
             # (table, using_field)

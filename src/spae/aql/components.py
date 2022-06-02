@@ -289,7 +289,8 @@ class LET(Command):
             entity.table.add_fields(*self.additional_fields)
 
         if self.has_annotation:
-            entity.annotate(self.annotation, self.as_field)
+            entity.table.annotate(self.annotation, self.as_field)
+            entity.table.add_fields(self.as_field, annotated=True)
 
 
 class REDUCE(Command):
